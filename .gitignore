@@ -1,0 +1,94 @@
+# ========================================
+#  LLM Analytics - Monorepo .gitignore
+# ========================================
+
+# ========================================
+# BACKEND (Python/FastAPI)
+# ========================================
+
+# Python-generated files
+__pycache__/
+*.py[ocd]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+
+# Virtual environments
+.venv
+venv/
+ENV/
+env/
+analytics-assistance/venv/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite3
+analytics-assistance/data/*.db
+analytics-assistance/*.db
+
+# IDE-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test/Demo files (temporary)
+test_*.py
+demo_*.py
+
+# Logs
+*.log
+
+# ========================================
+# FRONTEND (React/Node.js)
+# ========================================
+
+# Dependencies
+analytics-ui/node_modules/
+node_modules/
+
+# Production build
+analytics-ui/build/
+analytics-ui/dist/
+
+# Testing
+analytics-ui/coverage/
+
+# Environment variables
+analytics-ui/.env
+analytics-ui/.env.local
+analytics-ui/.env.development.local
+analytics-ui/.env.test.local
+analytics-ui/.env.production.local
+
+# Logs
+analytics-ui/npm-debug.log*
+analytics-ui/yarn-debug.log*
+analytics-ui/yarn-error.log*
+
+# Misc
+.DS_Store
+analytics-ui/.DS_Store
+
+# ========================================
+# GENERAL
+# ========================================
+
+# OS-specific files
+Thumbs.db
+.DS_Store
+
+# Editor backup files
+*~
+*.bak
+*.tmp
+
