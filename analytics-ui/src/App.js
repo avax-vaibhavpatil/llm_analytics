@@ -51,7 +51,6 @@ function App() {
           {/* Final Report page */}
           <Route path="/report" element={<ReportPage />} />
         </Routes>
-        </Routes>
       </Router>
     </ThemeProvider>
   );
