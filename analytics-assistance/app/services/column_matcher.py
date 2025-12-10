@@ -22,8 +22,9 @@ Example:
     - missing: ["created_at"]            ❌
 """
 
-from typing import Dict, List, Set, Any
+from typing import Dict, List, Set, Any, Optional
 from app.models.llm_models import ColumnPlanOutput
+import json
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -54,7 +55,8 @@ class ColumnMatchResult:
         missing_columns: List[str],
         optional_columns: List[str],
         assumptions: str,
-        recommendations: List[str]
+        recommendations: List[str],
+        sql_filters: Dict[str, Any] = None
     ):
         self.technical_summary = technical_summary
         self.required_columns = required_columns
@@ -63,6 +65,7 @@ class ColumnMatchResult:
         self.optional_columns = optional_columns
         self.assumptions = assumptions
         self.recommendations = recommendations
+        self.sql_filters = sql_filters
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -74,6 +77,7 @@ class ColumnMatchResult:
             "optional_columns": self.optional_columns,
             "assumptions": self.assumptions,
             "recommendations": self.recommendations,
+            "sql_filters": self.sql_filters,
             "analysis_complete": len(self.missing_columns) == 0
         }
     
@@ -144,7 +148,17 @@ def match_columns(
         actual_columns=list(actual_columns)
     )
     
-    # Step 5: Create result object
+    # Step 5: Parse sql_filters from JSON string to dict
+    parsed_filters: Optional[Dict[str, Any]] = None
+    if llm_output.sql_filters:
+        try:
+            parsed_filters = json.loads(llm_output.sql_filters)
+        except json.JSONDecodeError:
+            # If parsing fails, leave as None and log warning
+            print(f"Warning: Failed to parse sql_filters: {llm_output.sql_filters}")
+            parsed_filters = None
+    
+    # Step 6: Create result object
     return ColumnMatchResult(
         technical_summary=llm_output.technical_summary,
         required_columns=llm_output.required_columns,  # Keep original order
@@ -152,7 +166,8 @@ def match_columns(
         missing_columns=sorted(list(missing_columns)),
         optional_columns=llm_output.optional_columns,
         assumptions=llm_output.assumptions,
-        recommendations=recommendations
+        recommendations=recommendations,
+        sql_filters=parsed_filters  # NEW: Pass parsed SQL filters (dict) from LLM
     )
 
 

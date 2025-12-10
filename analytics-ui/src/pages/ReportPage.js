@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   Alert,
   Grid,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -23,13 +24,19 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import Sidebar from '../components/Sidebar';
+import { generateReport } from '../services/api';
 
 function ReportPage() {
   const location = useLocation();
   const navigate = useNavigate();
   
   // Get data from previous screen
-  const { result, query, table, selectedColumns, sampleData } = location.state || {};
+  const { result, query, table, selectedColumns } = location.state || {};
+  
+  // State for real data
+  const [reportData, setReportData] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [dataError, setDataError] = useState(null);
 
   // If no data, redirect to home
   React.useEffect(() => {
@@ -37,6 +44,32 @@ function ReportPage() {
       navigate('/');
     }
   }, [result, navigate]);
+  
+  // Fetch real report data
+  useEffect(() => {
+    const fetchReportData = async () => {
+      if (!table || !selectedColumns) return;
+      
+      setLoadingData(true);
+      setDataError(null);
+      
+      try {
+        // ✅ Use SQL filters from LLM analysis instead of null!
+        const filters = result?.sql_filters || null;
+        const response = await generateReport(table, selectedColumns, filters, 100); // Get 100 rows for full report
+        setReportData(response.data);
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+        setDataError(error.message || 'Failed to fetch report data');
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    
+    if (result) {
+      fetchReportData();
+    }
+  }, [table, selectedColumns, result]);
 
   if (!result) {
     return null;
@@ -48,11 +81,11 @@ function ReportPage() {
     const columns = selectedColumns || result.available_columns;
     const headers = columns.join(',');
     
-    const rows = sampleData.map(row => 
+    const rows = reportData.map(row => 
       columns.map(col => {
-        const value = row[col] || '';
+        const value = row[col] !== null && row[col] !== undefined ? String(row[col]) : '';
         // Escape quotes and wrap in quotes if contains comma
-        return value.toString().includes(',') ? `"${value}"` : value;
+        return value.includes(',') ? `"${value}"` : value;
       }).join(',')
     );
     
@@ -148,52 +181,78 @@ function ReportPage() {
           <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                📈 Report Data
+                📈 Report Data (Real from Database!)
               </Typography>
-              <Chip 
-                label={`${sampleData?.length || 0} rows`} 
-                color="success" 
-              />
+              {!loadingData && (
+                <Chip 
+                  label={`${reportData.length} rows`} 
+                  color="success" 
+                />
+              )}
             </Box>
 
-            <TableContainer sx={{ maxHeight: 500 }}>
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    {(selectedColumns || result.available_columns).map((column) => (
-                      <TableCell
-                        key={column}
-                        sx={{
-                          fontWeight: 'bold',
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          fontSize: '0.9rem',
-                        }}
-                      >
-                        {column}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sampleData && sampleData.map((row, index) => (
-                    <TableRow
-                      key={index}
-                      sx={{
-                        '&:hover': { bgcolor: '#f5f5f5' },
-                        '&:nth-of-type(odd)': { bgcolor: '#fafafa' },
-                      }}
-                    >
-                      {(selectedColumns || result.available_columns).map((column) => (
-                        <TableCell key={column}>
-                          {row[column] || 'N/A'}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            {loadingData ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <CircularProgress size={60} />
+                <Typography sx={{ ml: 3 }} variant="h6">Loading report data...</Typography>
+              </Box>
+            ) : dataError ? (
+              <Alert severity="error">
+                Error loading report: {dataError}
+              </Alert>
+            ) : (
+              <>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  ✅ Loaded {reportData.length} real rows from database!
+                </Alert>
+                <TableContainer sx={{ maxHeight: 500 }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        {(selectedColumns || result.available_columns).map((column) => (
+                          <TableCell
+                            key={column}
+                            sx={{
+                              fontWeight: 'bold',
+                              bgcolor: 'primary.main',
+                              color: 'white',
+                              fontSize: '0.9rem',
+                            }}
+                          >
+                            {column}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {reportData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={selectedColumns?.length || result.available_columns.length} align="center">
+                            <Typography color="textSecondary">No data found</Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        reportData.map((row, index) => (
+                          <TableRow
+                            key={index}
+                            sx={{
+                              '&:hover': { bgcolor: '#f5f5f5' },
+                              '&:nth-of-type(odd)': { bgcolor: '#fafafa' },
+                            }}
+                          >
+                            {(selectedColumns || result.available_columns).map((column) => (
+                              <TableCell key={column}>
+                                {row[column] !== null && row[column] !== undefined ? String(row[column]) : 'N/A'}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
           </Paper>
 
           {/* Action Buttons */}
@@ -208,6 +267,7 @@ function ReportPage() {
                   size="large"
                   startIcon={<DownloadIcon />}
                   onClick={handleExportCSV}
+                  disabled={loadingData || reportData.length === 0}
                 >
                   Download CSV
                 </Button>
@@ -242,9 +302,11 @@ function ReportPage() {
           </Paper>
 
           {/* Footer Info */}
-          <Alert severity="success" sx={{ mt: 3 }}>
-            ✅ Report generated successfully! You can download, create similar reports, or return to home.
-          </Alert>
+          {!loadingData && !dataError && reportData.length > 0 && (
+            <Alert severity="success" sx={{ mt: 3 }}>
+              ✅ Report generated successfully with REAL DATA! You can download, create similar reports, or return to home.
+            </Alert>
+          )}
         </Container>
       </Box>
     </Box>

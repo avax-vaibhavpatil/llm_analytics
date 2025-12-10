@@ -15,6 +15,9 @@ lsof -ti:8000
 # 2. Kill it (replace XXXX with the PID from step 1)
 kill -9 XXXX
 
+pkill -9 node
+pkill -9 python
+
 **URL:** http://localhost:8000  
 **Docs:** http://localhost:8000/docs
 

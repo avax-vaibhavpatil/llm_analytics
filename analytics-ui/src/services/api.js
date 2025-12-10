@@ -42,6 +42,24 @@ export const analyzeColumns = async (tableName, requirement) => {
   return response.data;
 };
 
+/**
+ * Generate report with REAL DATA from database
+ * @param {string} tableName - Name of the table
+ * @param {Array<string>} columns - List of columns to include
+ * @param {Object} filters - Optional filters (e.g., {segment: 'Enterprise'})
+ * @param {number} limit - Maximum number of rows (default: 100)
+ * @returns {Promise<Object>}
+ */
+export const generateReport = async (tableName, columns, filters = null, limit = 100) => {
+  const response = await api.post('/reports/generate', {
+    table_name: tableName,
+    columns: columns,
+    filters: filters,
+    limit: limit,
+  });
+  return response.data;
+};
+
 // Axios interceptor for error handling
 api.interceptors.response.use(
   (response) => response,

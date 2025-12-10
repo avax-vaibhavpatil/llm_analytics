@@ -17,11 +17,15 @@ from app.routes.schema import (
     ErrorResponse,
     ListTablesResponse,
     TableInfo,
-    TableSchemaResponse
+    TableSchemaResponse,
+    GenerateReportRequest,
+    GenerateReportResponse
 )
 from app.schemas.schema_registry import list_tables, get_table_schema
 from app.services.column_planner import plan_columns
 from app.services.column_matcher import match_columns
+from app.services.report_generator import generate_report
+from app.db import engine
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -224,6 +228,120 @@ async def get_table_schema_endpoint(table_name: str):
         columns=schema['columns'],
         total_columns=len(schema['columns'])
     )
+
+
+# ══════════════════════════════════════════════════════════════════
+# REPORT GENERATION ENDPOINT - Fetch REAL Data
+# ══════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/reports/generate",
+    response_model=GenerateReportResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Table not found"},
+        500: {"model": ErrorResponse, "description": "Query execution failed"}
+    },
+    summary="Generate Report with Real Data",
+    description="""
+    Execute a SQL query and return REAL DATA from the database.
+    
+    This endpoint replaces mock data with actual database results!
+    """
+)
+async def generate_report_endpoint(request: GenerateReportRequest):
+    """
+    🔥 NEW ENDPOINT - Fetch REAL Data from Database
+    
+    This endpoint executes an actual SQL query and returns real results.
+    No more mock data!
+    
+    Flow:
+    1. Validate table exists
+    2. Build safe SQL query with filters
+    3. Execute query against database
+    4. Return actual data
+    
+    Example Request:
+        POST /api/reports/generate
+        {
+          "table_name": "crm_customers",
+          "columns": ["customer_id", "first_name", "segment", "mrr"],
+          "filters": {"segment": "Enterprise"},
+          "limit": 50
+        }
+    
+    Example Response:
+        {
+          "table_name": "crm_customers",
+          "columns": ["customer_id", "first_name", "segment", "mrr"],
+          "row_count": 50,
+          "data": [
+            {"customer_id": "CUST-001", "first_name": "John", "segment": "Enterprise", "mrr": 850},
+            ...
+          ],
+          "query_executed": "SELECT ... FROM crm_customers WHERE segment = 'Enterprise' LIMIT 50"
+        }
+    """
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 1: Validate table exists
+    # ═══════════════════════════════════════════════════════════
+    
+    available_tables = list_tables()
+    
+    if request.table_name not in available_tables:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": f"Table '{request.table_name}' not found",
+                "detail": f"Available tables: {', '.join(available_tables)}"
+            }
+        )
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 2: Validate columns exist in table
+    # ═══════════════════════════════════════════════════════════
+    
+    table_schema = get_table_schema(request.table_name)
+    available_columns = [col['name'] for col in table_schema['columns']]
+    
+    invalid_columns = [col for col in request.columns if col not in available_columns]
+    
+    if invalid_columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": f"Invalid columns: {', '.join(invalid_columns)}",
+                "detail": f"Available columns: {', '.join(available_columns)}"
+            }
+        )
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 3: Generate report (execute SQL query)
+    # ═══════════════════════════════════════════════════════════
+    
+    try:
+        result = await generate_report(
+            engine=engine,
+            table_name=request.table_name,
+            columns=request.columns,
+            filters=request.filters,
+            limit=request.limit or 100
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Failed to execute query",
+                "detail": str(e)
+            }
+        )
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 4: Return real data
+    # ═══════════════════════════════════════════════════════════
+    
+    return GenerateReportResponse(**result)
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -23,7 +23,7 @@ Analyzes natural language analytics requirements and determines:
 
 - **Framework**: FastAPI (Python)
 - **LLM**: LangChain + OpenAI
-- **Database**: SQLite with async SQLAlchemy
+- **Database**: PostgreSQL with async SQLAlchemy
 - **Language**: Python 3.12+
 
 ## 📦 Project Structure
@@ -45,7 +45,8 @@ analytics-assistance/
 │       ├── schema.py              # API request/response models
 │       └── analytics.py           # API endpoints
 ├── data/
-│   └── analytics.db               # SQLite database
+│   ├── backup/                    # SQLite backups (archived)
+│   └── *.sql                      # Dataset SQL files
 ├── requirements.txt               # Python dependencies
 ├── .env.example                   # Environment variables template
 └── README.md                      # This file
@@ -85,6 +86,10 @@ nano .env
 
 Required variables:
 ```bash
+# Database Configuration (PostgreSQL)
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5430/analytics-llm
+
+# OpenAI Configuration
 OPENAI_API_KEY=sk-your-key-here
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_TEMPERATURE=0.1
@@ -222,13 +227,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Database Not Found
+### Database Connection Error
 ```bash
-# Check if analytics.db exists in data/
-ls -la data/
+# Check PostgreSQL is running
+sudo systemctl status postgresql
 
-# If missing, restore from SQL files
-python data/load_sql_file.py
+# Verify DATABASE_URL in .env
+cat .env | grep DATABASE_URL
+
+# Test connection
+python -c "from app.db import engine; print(engine.url)"
 ```
 
 ## 🚀 Deployment

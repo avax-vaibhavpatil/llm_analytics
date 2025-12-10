@@ -11,7 +11,7 @@ Why separate from LLM models?
 """
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional, Dict, Any
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -74,6 +74,7 @@ class AnalyzeColumnsResponse(BaseModel):
           "available_columns": ["mrr", "industry"],
           "missing_columns": [],
           "optional_columns": ["country"],
+          "sql_filters": {"industry": "Healthcare", "arr": {">": 100000}},
           "assumptions": "...",
           "recommendations": ["✅ All columns available"],
           "analysis_complete": true
@@ -99,6 +100,11 @@ class AnalyzeColumnsResponse(BaseModel):
     optional_columns: List[str] = Field(
         description="Columns that would enhance the analysis but aren't critical",
         default_factory=list
+    )
+    
+    sql_filters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="SQL filter conditions extracted from the user's query"
     )
     
     assumptions: str = Field(
@@ -211,6 +217,104 @@ class TableSchemaResponse(BaseModel):
     table_name: str
     columns: List[dict]
     total_columns: int
+
+
+class GenerateReportRequest(BaseModel):
+    """
+    Request body for POST /reports/generate endpoint.
+    
+    This is what the user sends to fetch REAL DATA from the database.
+    
+    Example:
+        {
+          "table_name": "crm_customers",
+          "columns": ["customer_id", "first_name", "segment", "mrr"],
+          "filters": {"segment": "Enterprise", "mrr": {">": 500}},
+          "limit": 100
+        }
+    """
+    
+    table_name: str = Field(
+        description="Name of the table to query"
+    )
+    
+    columns: List[str] = Field(
+        description="List of columns to include in the report"
+    )
+    
+    filters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional filters to apply (e.g., {'segment': 'Enterprise', 'mrr': {'>': 500}})"
+    )
+    
+    limit: Optional[int] = Field(
+        default=100,
+        description="Maximum number of rows to return (default: 100, max: 1000)"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "table_name": "crm_customers",
+                "columns": ["customer_id", "first_name", "last_name", "segment", "mrr"],
+                "filters": {"segment": "Enterprise"},
+                "limit": 50
+            }
+        }
+
+
+class GenerateReportResponse(BaseModel):
+    """
+    Response body for POST /reports/generate endpoint.
+    
+    Contains the REAL DATA from the database.
+    
+    Example:
+        {
+          "table_name": "crm_customers",
+          "columns": ["customer_id", "first_name", "segment", "mrr"],
+          "row_count": 292,
+          "data": [
+            {"customer_id": "CUST-001", "first_name": "John", "segment": "Enterprise", "mrr": 850},
+            ...
+          ],
+          "query_executed": "SELECT customer_id, first_name, segment, mrr FROM crm_customers WHERE segment = 'Enterprise' LIMIT 100"
+        }
+    """
+    
+    table_name: str = Field(
+        description="Name of the table queried"
+    )
+    
+    columns: List[str] = Field(
+        description="List of columns included in the results"
+    )
+    
+    row_count: int = Field(
+        description="Number of rows returned"
+    )
+    
+    data: List[Dict[str, Any]] = Field(
+        description="Actual data rows from the database"
+    )
+    
+    query_executed: str = Field(
+        description="SQL query that was executed (for debugging)"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "table_name": "crm_customers",
+                "columns": ["customer_id", "first_name", "segment", "mrr"],
+                "row_count": 2,
+                "data": [
+                    {"customer_id": "CUST-001", "first_name": "John", "segment": "Enterprise", "mrr": 850},
+                    {"customer_id": "CUST-002", "first_name": "Jane", "segment": "Enterprise", "mrr": 920}
+                ],
+                "query_executed": "SELECT customer_id, first_name, segment, mrr FROM crm_customers WHERE segment = 'Enterprise' LIMIT 100"
+            }
+        }
 
 
 # ══════════════════════════════════════════════════════════════════

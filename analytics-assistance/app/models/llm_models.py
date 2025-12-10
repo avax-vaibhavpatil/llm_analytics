@@ -17,8 +17,8 @@ How LangChain uses this:
 5. We get type-safe access: result.required_columns (not result["required_columns"])
 """
 
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Dict, Any, Optional, Union
 
 
 class ColumnPlanOutput(BaseModel):
@@ -84,6 +84,26 @@ class ColumnPlanOutput(BaseModel):
         ]
     )
     
+    sql_filters: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQL filter conditions extracted from the user's query as a JSON string. "
+            "Format: {\"column_name\": \"value\"} for equality, or {\"column_name\": {\"operator\": value}} for comparisons. "
+            "Operators: '>', '<', '>=', '<=', '=', '!='. "
+            "Examples: "
+            "{\"industry\": \"Healthcare\"} for exact match, "
+            "{\"arr\": {\">\": 100000}} for ARR > 100k, "
+            "{\"is_customer\": 1} for boolean flags. "
+            "Leave as null if no specific filters are mentioned. "
+            "MUST be valid JSON string or null."
+        ),
+        examples=[
+            "{\"industry\": \"Healthcare\", \"arr\": {\">\": 100000}}",
+            "{\"segment\": \"Enterprise\", \"mrr\": {\">\": 5000}}",
+            "{\"country\": \"USA\", \"is_active\": 1}"
+        ]
+    )
+    
     # Optional: Add a custom method for easier debugging
     def __str__(self) -> str:
         """Pretty print for debugging"""
@@ -92,6 +112,7 @@ ColumnPlanOutput:
   Summary: {self.technical_summary}
   Required: {', '.join(self.required_columns)}
   Optional: {', '.join(self.optional_columns) if self.optional_columns else 'None'}
+  Filters: {self.sql_filters if self.sql_filters else 'None'}
   Assumptions: {self.assumptions}
 """
 

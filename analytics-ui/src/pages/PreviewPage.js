@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -18,6 +18,7 @@ import {
   Divider,
   Grid,
   Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowForward as ArrowIcon,
@@ -26,6 +27,7 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import Sidebar from '../components/Sidebar';
+import { generateReport } from '../services/api';
 
 function PreviewPage() {
   const location = useLocation();
@@ -39,6 +41,11 @@ function PreviewPage() {
   const [selectedColumns, setSelectedColumns] = useState(
     result ? new Set(result.available_columns) : new Set()
   );
+  
+  // State for real data
+  const [realData, setRealData] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState(null);
 
   // If no data, redirect to home (after hooks are called!)
   React.useEffect(() => {
@@ -46,6 +53,31 @@ function PreviewPage() {
       navigate('/');
     }
   }, [result, navigate]);
+  
+  // Fetch real data when selected columns change
+  useEffect(() => {
+    const fetchRealData = async () => {
+      if (selectedColumns.size === 0 || !table) return;
+      
+      setLoadingData(true);
+      setDataError(null);
+      
+      try {
+        const columns = Array.from(selectedColumns);
+        // ✅ Use SQL filters from LLM analysis instead of null!
+        const filters = result?.sql_filters || null;
+        const response = await generateReport(table, columns, filters, 5); // Get 5 rows for preview
+        setRealData(response.data);
+      } catch (error) {
+        console.error('Error fetching real data:', error);
+        setDataError(error.message || 'Failed to fetch data');
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    
+    fetchRealData();
+  }, [selectedColumns, table, result]);
 
   // Don't render if no data
   if (!result) {
@@ -65,50 +97,13 @@ function PreviewPage() {
     });
   };
 
-  // Generate mock sample data for preview
-  const generateMockData = () => {
-    // Create 5 sample rows
-    const mockData = [];
-    const columns = Array.from(selectedColumns);
-    
-    for (let i = 0; i < 5; i++) {
-      const row = {};
-      columns.forEach((col) => {
-        // Generate appropriate mock data based on column name
-        if (col.includes('id')) {
-          row[col] = `ID${1001 + i}`;
-        } else if (col.includes('mrr') || col.includes('arr') || col.includes('amount') || col.includes('revenue')) {
-          row[col] = `$${(Math.random() * 2000 + 500).toFixed(0)}`;
-        } else if (col.includes('industry') || col.includes('sector')) {
-          row[col] = ['Technology', 'Finance', 'Retail', 'Healthcare', 'Manufacturing'][i];
-        } else if (col.includes('country')) {
-          row[col] = ['USA', 'UK', 'Canada', 'Germany', 'France'][i];
-        } else if (col.includes('date') || col.includes('created') || col.includes('updated')) {
-          row[col] = new Date(2024, 5 + i, 1).toISOString().split('T')[0];
-        } else if (col.includes('count') || col.includes('total')) {
-          row[col] = Math.floor(Math.random() * 100) + 10;
-        } else if (col.includes('name')) {
-          row[col] = ['Acme Corp', 'Tech Solutions', 'Finance Plus', 'Retail Co', 'Health Inc'][i];
-        } else {
-          row[col] = `Sample ${i + 1}`;
-        }
-      });
-      mockData.push(row);
-    }
-    
-    return mockData;
-  };
-
-  const sampleData = generateMockData();
-
   const handleGenerateReport = () => {
     navigate('/report', { 
       state: { 
         result, 
         query, 
         table,
-        selectedColumns: Array.from(selectedColumns),
-        sampleData 
+        selectedColumns: Array.from(selectedColumns)
       } 
     });
   };
@@ -227,52 +222,74 @@ function PreviewPage() {
             <Grid item xs={12} md={8}>
               <Paper elevation={3} sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  📋 Sample Preview (First 5 rows)
+                  📋 Real Data Preview (First 5 rows)
                 </Typography>
                 
                 <Typography variant="caption" color="textSecondary" paragraph>
-                  This is mock data for preview purposes
+                  🔥 This is REAL data from your database!
                 </Typography>
 
                 {selectedColumns.size === 0 ? (
                   <Alert severity="warning">
                     Please select at least one column to preview
                   </Alert>
+                ) : loadingData ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                    <CircularProgress />
+                    <Typography sx={{ ml: 2 }}>Loading real data...</Typography>
+                  </Box>
+                ) : dataError ? (
+                  <Alert severity="error">
+                    Error loading data: {dataError}
+                  </Alert>
                 ) : (
-                  <TableContainer sx={{ maxHeight: 400 }}>
-                    <Table stickyHeader size="small">
-                      <TableHead>
-                        <TableRow>
-                          {Array.from(selectedColumns).map((column) => (
-                            <TableCell 
-                              key={column}
-                              sx={{ 
-                                fontWeight: 'bold',
-                                bgcolor: 'primary.main',
-                                color: 'white'
-                              }}
-                            >
-                              {column}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {sampleData.map((row, index) => (
-                          <TableRow 
-                            key={index}
-                            sx={{ '&:hover': { bgcolor: '#f5f5f5' } }}
-                          >
+                  <>
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      ✅ Showing {realData.length} real rows from database
+                    </Alert>
+                    <TableContainer sx={{ maxHeight: 400 }}>
+                      <Table stickyHeader size="small">
+                        <TableHead>
+                          <TableRow>
                             {Array.from(selectedColumns).map((column) => (
-                              <TableCell key={column}>
-                                {row[column] || 'N/A'}
+                              <TableCell 
+                                key={column}
+                                sx={{ 
+                                  fontWeight: 'bold',
+                                  bgcolor: 'primary.main',
+                                  color: 'white'
+                                }}
+                              >
+                                {column}
                               </TableCell>
                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                          {realData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={selectedColumns.size} align="center">
+                                <Typography color="textSecondary">No data found</Typography>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            realData.map((row, index) => (
+                              <TableRow 
+                                key={index}
+                                sx={{ '&:hover': { bgcolor: '#f5f5f5' } }}
+                              >
+                                {Array.from(selectedColumns).map((column) => (
+                                  <TableCell key={column}>
+                                    {row[column] !== null && row[column] !== undefined ? String(row[column]) : 'N/A'}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
                 )}
 
                 {/* Action Buttons */}

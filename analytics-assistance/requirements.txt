@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-aiosqlite
+psycopg2-binary
+asyncpg
 python-dotenv
 langchain
 langchain-openai
