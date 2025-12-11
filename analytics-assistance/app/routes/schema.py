@@ -318,6 +318,103 @@ class GenerateReportResponse(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════════════
+# ADMIN REQUEST MODELS - For non-matched/partial-matched queries
+# ══════════════════════════════════════════════════════════════════
+
+class RegisterAdminQueryRequest(BaseModel):
+    """
+    Request body for POST /admin/register-query endpoint.
+    
+    When AI cannot find all required columns, user can register the query
+    with admin for review and resolution.
+    
+    Example:
+        {
+          "original_query": "give me date of birth of all customers",
+          "technical_interpretation": "User is requesting date of birth column...",
+          "table_name": "crm_customers",
+          "required_columns": ["date_of_birth"],
+          "missing_columns": ["date_of_birth"],
+          "available_columns": []
+        }
+    """
+    
+    original_query: str = Field(
+        description="The exact query user typed",
+        min_length=1
+    )
+    
+    technical_interpretation: str = Field(
+        description="LLM's technical understanding of the query"
+    )
+    
+    table_name: str = Field(
+        description="Table user tried to query"
+    )
+    
+    required_columns: List[str] = Field(
+        description="Columns needed for the analysis"
+    )
+    
+    missing_columns: List[str] = Field(
+        description="Columns that don't exist in the table"
+    )
+    
+    available_columns: List[str] = Field(
+        description="Columns that do exist in the table",
+        default_factory=list
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "original_query": "give me date of birth of all customers",
+                "technical_interpretation": "User is requesting the date of birth column for all customers. However, the provided schema does not include a date of birth column.",
+                "table_name": "crm_customers",
+                "required_columns": ["date_of_birth"],
+                "missing_columns": ["date_of_birth"],
+                "available_columns": []
+            }
+        }
+
+
+class RegisterAdminQueryResponse(BaseModel):
+    """
+    Response body for POST /admin/register-query endpoint.
+    
+    Returns confirmation that the query was saved for admin review.
+    
+    Example:
+        {
+          "success": true,
+          "request_id": 123,
+          "message": "Your query has been registered with admin for review"
+        }
+    """
+    
+    success: bool = Field(
+        description="Whether the request was saved successfully"
+    )
+    
+    request_id: int = Field(
+        description="ID of the saved request in database"
+    )
+    
+    message: str = Field(
+        description="Confirmation message for the user"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "request_id": 123,
+                "message": "Your query has been registered with admin for review. We'll notify you once it's resolved."
+            }
+        }
+
+
+# ══════════════════════════════════════════════════════════════════
 # USAGE EXAMPLE (for documentation)
 # ══════════════════════════════════════════════════════════════════
 

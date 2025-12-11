@@ -19,12 +19,15 @@ from app.routes.schema import (
     TableInfo,
     TableSchemaResponse,
     GenerateReportRequest,
-    GenerateReportResponse
+    GenerateReportResponse,
+    RegisterAdminQueryRequest,
+    RegisterAdminQueryResponse
 )
 from app.schemas.schema_registry import list_tables, get_table_schema
 from app.services.column_planner import plan_columns
 from app.services.column_matcher import match_columns
 from app.services.report_generator import generate_report
+from app.services.admin_request_service import save_admin_request
 from app.db import engine
 
 
@@ -342,6 +345,90 @@ async def generate_report_endpoint(request: GenerateReportRequest):
     # ═══════════════════════════════════════════════════════════
     
     return GenerateReportResponse(**result)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ADMIN REQUEST ENDPOINT - Register Non-Matched Queries
+# ══════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/admin/register-query",
+    response_model=RegisterAdminQueryResponse,
+    responses={
+        500: {"model": ErrorResponse, "description": "Failed to save request"}
+    },
+    summary="Register Non-Matched Query with Admin",
+    description="""
+    When AI cannot find all required columns for a query, user can register
+    the query with admin for manual review and resolution.
+    
+    This endpoint saves the query details to the database for admin review.
+    """
+)
+async def register_admin_query(request: RegisterAdminQueryRequest):
+    """
+    🔴 NEW ENDPOINT - Register Query with Admin
+    
+    When missing columns are detected, user can choose to register the query
+    with admin instead of editing it. This saves all details for later review.
+    
+    Flow:
+    1. Validate request data (automatic via Pydantic)
+    2. Save to admin_report_requests table
+    3. Return confirmation with request ID
+    
+    Example Request:
+        POST /api/admin/register-query
+        {
+          "original_query": "give me date of birth of all customers",
+          "technical_interpretation": "User wants date_of_birth column...",
+          "table_name": "crm_customers",
+          "required_columns": ["date_of_birth"],
+          "missing_columns": ["date_of_birth"],
+          "available_columns": []
+        }
+    
+    Example Response:
+        {
+          "success": true,
+          "request_id": 123,
+          "message": "Your query has been registered with admin for review"
+        }
+    """
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 1: Save request to database
+    # ═══════════════════════════════════════════════════════════
+    
+    try:
+        request_id = await save_admin_request(
+            engine=engine,
+            original_query=request.original_query,
+            technical_interpretation=request.technical_interpretation,
+            table_name=request.table_name,
+            required_columns=request.required_columns,
+            missing_columns=request.missing_columns,
+            available_columns=request.available_columns
+        )
+    except Exception as e:
+        # If database insert fails, return error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Failed to save admin request",
+                "detail": str(e)
+            }
+        )
+    
+    # ═══════════════════════════════════════════════════════════
+    # STEP 2: Return success response
+    # ═══════════════════════════════════════════════════════════
+    
+    return RegisterAdminQueryResponse(
+        success=True,
+        request_id=request_id,
+        message="Your query has been registered with admin for review. We'll notify you once it's resolved."
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
