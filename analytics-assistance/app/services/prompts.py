@@ -112,9 +112,11 @@ Filter Examples:
 - Multiple conditions → {{"industry": "Healthcare", "arr": {{">": 100000}}}}
 
 Remember:
-- Only use columns from the "Available Columns" list above
-- Use exact column names as shown
-- Be specific in your technical summary
+- CRITICAL: If user asks for a column that doesn't exist in "Available Columns", still include it in "required_columns" 
+  so we can detect it's missing! Example: User asks for "date_of_birth" but it's not available → 
+  put "date_of_birth" in required_columns anyway (the system will detect it's missing later)
+- Use exact column names as shown in "Available Columns" for columns that DO exist
+- Be specific in your technical summary - explain what user wants even if columns are missing
 - Extract ALL filter conditions mentioned in the user's query
 - Convert currency values ($100k → 100000, $5M → 5000000)
 - If no filters are mentioned, set sql_filters to null

@@ -7,3 +7,5 @@ python-dotenv
 langchain
 langchain-openai
 pydantic
+langchain-groq==1.1.0
+pyyaml

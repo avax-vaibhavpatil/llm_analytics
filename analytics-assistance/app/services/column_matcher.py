@@ -148,15 +148,11 @@ def match_columns(
         actual_columns=list(actual_columns)
     )
     
-    # Step 5: Parse sql_filters from JSON string to dict
+    # Step 5: Get sql_filters (now already a dict)
     parsed_filters: Optional[Dict[str, Any]] = None
     if llm_output.sql_filters:
-        try:
-            parsed_filters = json.loads(llm_output.sql_filters)
-        except json.JSONDecodeError:
-            # If parsing fails, leave as None and log warning
-            print(f"Warning: Failed to parse sql_filters: {llm_output.sql_filters}")
-            parsed_filters = None
+        # sql_filters is already a dict, no need to parse
+        parsed_filters = llm_output.sql_filters
     
     # Step 6: Create result object
     return ColumnMatchResult(

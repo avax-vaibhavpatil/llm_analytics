@@ -344,7 +344,7 @@ function AvailabilityPage() {
                     color="warning"
                     size="large"
                     startIcon={<EmailIcon />}
-                    onClick={handleRequestAdmin}
+                    onClick={() => setShowDialog(true)}
                   >
                     Request Missing Columns from Admin
                   </Button>

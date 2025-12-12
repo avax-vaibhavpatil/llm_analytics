@@ -84,23 +84,22 @@ class ColumnPlanOutput(BaseModel):
         ]
     )
     
-    sql_filters: Optional[str] = Field(
+    sql_filters: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
-            "SQL filter conditions extracted from the user's query as a JSON string. "
+            "SQL filter conditions extracted from the user's query as a dictionary. "
             "Format: {\"column_name\": \"value\"} for equality, or {\"column_name\": {\"operator\": value}} for comparisons. "
             "Operators: '>', '<', '>=', '<=', '=', '!='. "
             "Examples: "
             "{\"industry\": \"Healthcare\"} for exact match, "
             "{\"arr\": {\">\": 100000}} for ARR > 100k, "
             "{\"is_customer\": 1} for boolean flags. "
-            "Leave as null if no specific filters are mentioned. "
-            "MUST be valid JSON string or null."
+            "Leave as null if no specific filters are mentioned."
         ),
         examples=[
-            "{\"industry\": \"Healthcare\", \"arr\": {\">\": 100000}}",
-            "{\"segment\": \"Enterprise\", \"mrr\": {\">\": 5000}}",
-            "{\"country\": \"USA\", \"is_active\": 1}"
+            {"industry": "Healthcare", "arr": {">": 100000}},
+            {"segment": "Enterprise", "mrr": {">": 5000}},
+            {"country": "USA", "is_active": 1}
         ]
     )
     

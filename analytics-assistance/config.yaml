@@ -1,0 +1,166 @@
+# ══════════════════════════════════════════════════════════════════
+# LLM Configuration
+# ══════════════════════════════════════════════════════════════════
+#
+# This file controls which LLM provider your application uses.
+# To switch providers, just change the 'provider' field and restart!
+#
+# No code changes needed!
+#
+# ══════════════════════════════════════════════════════════════════
+
+llm:
+  # ────────────────────────────────────────────────────────────────
+  # Provider Selection
+  # ────────────────────────────────────────────────────────────────
+  # Available providers: openai, groq, anthropic, bedrock, gemini
+  # 
+  # FREE options: groq (recommended for development)
+  # PAID options: openai, anthropic (recommended for production)
+  
+  provider: groq  # Change this to switch providers!
+  
+  # ────────────────────────────────────────────────────────────────
+  # Model Configuration
+  # ────────────────────────────────────────────────────────────────
+  # Model name depends on provider:
+  #
+  # Groq models:
+  #   - llama-3.3-70b-versatile  (best, general purpose)
+  #   - llama-3.1-8b-instant     (fastest)
+  #   - mixtral-8x7b-32768       (good for code)
+  #
+  # OpenAI models:
+  #   - gpt-4o-mini              (cheapest, good quality)
+  #   - gpt-4o                   (best quality)
+  #   - gpt-4-turbo              (fast + capable)
+  
+  model: llama-3.3-70b-versatile
+  
+  # ────────────────────────────────────────────────────────────────
+  # Generation Parameters
+  # ────────────────────────────────────────────────────────────────
+  
+  # Temperature: 0.0 (focused) to 1.0 (creative)
+  # - 0.0-0.3: Factual, deterministic (reports, analysis)
+  # - 0.4-0.7: Balanced (general purpose)
+  # - 0.8-1.0: Creative (stories, brainstorming)
+  temperature: 0.2
+  
+  # Max tokens in response
+  # - 100-500: Short responses (quick answers)
+  # - 500-2000: Medium responses (explanations)
+  # - 2000+: Long responses (detailed analysis)
+  max_tokens: 500
+
+
+# ══════════════════════════════════════════════════════════════════
+# Example Configurations for Different Providers
+# ══════════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────────
+# Groq (FREE & FAST) - Recommended for Development
+# ────────────────────────────────────────────────────────────────
+# llm:
+#   provider: groq
+#   model: llama-3.3-70b-versatile
+#   temperature: 0.2
+#   max_tokens: 500
+# 
+# Get API key: https://console.groq.com/keys
+# Free tier: 30 req/min, 6000 req/day
+# Speed: Fastest in the world!
+
+# ────────────────────────────────────────────────────────────────
+# OpenAI - Recommended for Production
+# ────────────────────────────────────────────────────────────────
+# llm:
+#   provider: openai
+#   model: gpt-4o-mini
+#   temperature: 0.2
+#   max_tokens: 500
+# 
+# Get API key: https://platform.openai.com/api-keys
+# Cost: ~$0.0002 per request (gpt-4o-mini)
+# Quality: Excellent
+
+# ────────────────────────────────────────────────────────────────
+# Anthropic Claude - High Quality
+# ────────────────────────────────────────────────────────────────
+# llm:
+#   provider: anthropic
+#   model: claude-3-haiku-20240307
+#   temperature: 0.2
+#   max_tokens: 500
+# 
+# Get API key: https://console.anthropic.com/
+# Cost: Varies by model
+# Quality: Excellent, long context
+
+# ────────────────────────────────────────────────────────────────
+# Ollama (Local, 100% FREE & PRIVATE)
+# ────────────────────────────────────────────────────────────────
+# llm:
+#   provider: ollama
+#   model: llama3.1
+#   temperature: 0.2
+#   max_tokens: 500
+# 
+# Install: curl https://ollama.ai/install.sh | sh
+# Download model: ollama pull llama3.1
+# Cost: FREE (runs on your computer)
+# Privacy: 100% local, no data sent anywhere
+
+
+# ══════════════════════════════════════════════════════════════════
+# Environment-Specific Configurations
+# ══════════════════════════════════════════════════════════════════
+
+# Development (use fast, free provider)
+development:
+  llm:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.2
+    max_tokens: 500
+
+# Production (use high-quality, reliable provider)
+production:
+  llm:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.1
+    max_tokens: 500
+
+# Testing (use fast, cheap provider)
+testing:
+  llm:
+    provider: groq
+    model: llama-3.1-8b-instant
+    temperature: 0.0
+    max_tokens: 200
+
+
+# ══════════════════════════════════════════════════════════════════
+# Notes
+# ══════════════════════════════════════════════════════════════════
+#
+# API Keys:
+#   - NOT stored in this file (security!)
+#   - Stored in .env file
+#   - Example: GROQ_API_KEY=gsk_xxx
+#
+# Switching Providers:
+#   1. Change 'provider' field
+#   2. Update 'model' to match provider
+#   3. Restart application
+#   4. Done!
+#
+# Adding New Providers:
+#   1. Add provider to llm/providers/
+#   2. Add to PROVIDER_REGISTRY in model_factory.py
+#   3. Add example config above
+#   4. Done!
+#
+# ══════════════════════════════════════════════════════════════════
+
