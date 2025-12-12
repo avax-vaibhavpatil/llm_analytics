@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -14,6 +14,8 @@ import {
   Chip,
   Divider,
   Grid,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import {
   CheckCircle as CheckIcon,
@@ -23,6 +25,8 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import Sidebar from '../components/Sidebar';
+import NonMatchDialog from '../components/NonMatchDialog';
+import { registerAdminRequest, analyzeColumns } from '../services/api';
 
 function AvailabilityPage() {
   const location = useLocation();
@@ -30,6 +34,18 @@ function AvailabilityPage() {
   
   // Get data from previous screen
   const { result, query, table } = location.state || {};
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════
+  
+  // Dialog state
+  const [showDialog, setShowDialog] = useState(false);
+  
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editedQuery, setEditedQuery] = useState(query || '');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // If no data, redirect to home
   if (!result) {
@@ -42,6 +58,21 @@ function AvailabilityPage() {
   const partiallyAvailable = result.available_columns.length > 0 && result.missing_columns.length > 0;
   const nothingAvailable = result.available_columns.length === 0;
 
+  // ═══════════════════════════════════════════════════════════
+  // EFFECT: Show dialog when missing columns detected
+  // ═══════════════════════════════════════════════════════════
+  
+  useEffect(() => {
+    // Automatically show dialog if there are missing columns
+    if (result.missing_columns && result.missing_columns.length > 0) {
+      setShowDialog(true);
+    }
+  }, [result.missing_columns]);
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENT HANDLERS
+  // ═══════════════════════════════════════════════════════════
+
   // Handle "Proceed to Report" button
   const handleProceed = () => {
     navigate('/preview', { state: { result, query, table } });
@@ -52,10 +83,73 @@ function AvailabilityPage() {
     navigate('/');
   };
 
-  // Handle "Request from Admin" button
-  const handleRequestAdmin = () => {
-    alert(`📧 Request sent to admin for missing columns: ${result.missing_columns.join(', ')}`);
-    // In real app, this would send email/notification
+  // Handle "Edit Query" from dialog
+  const handleEditQuery = () => {
+    setShowDialog(false);
+    setEditMode(true);
+    setEditedQuery(query);
+  };
+
+  // Handle re-analyzing edited query
+  const handleReanalyze = async () => {
+    if (!editedQuery.trim()) {
+      alert('Please enter a query');
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      // Call API to analyze the new query
+      const newResult = await analyzeColumns(table, editedQuery);
+      
+      // Check if still has missing columns
+      if (newResult.missing_columns && newResult.missing_columns.length > 0) {
+        // Still missing columns - show dialog again
+        setShowDialog(true);
+        setEditMode(false);
+        
+        // Update the location state with new result
+        navigate('/availability', {
+          state: { result: newResult, query: editedQuery, table },
+          replace: true
+        });
+      } else {
+        // All columns found! Proceed to preview
+        navigate('/preview', {
+          state: { result: newResult, query: editedQuery, table }
+        });
+      }
+    } catch (error) {
+      alert(`Error analyzing query: ${error.message}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Handle "Register with Admin" from dialog
+  const handleRegisterAdmin = async () => {
+    setShowDialog(false);
+
+    try {
+      // Call API to register the query with admin
+      const response = await registerAdminRequest({
+        original_query: query,
+        technical_interpretation: result.technical_summary,
+        table_name: table,
+        required_columns: result.required_columns,
+        missing_columns: result.missing_columns,
+        available_columns: result.available_columns,
+      });
+
+      // Show success message
+      alert(`✅ ${response.message}\n\nRequest ID: ${response.request_id}`);
+      
+      // Redirect to home
+      navigate('/');
+    } catch (error) {
+      alert(`❌ Failed to register query: ${error.message}`);
+    }
   };
 
   return (
@@ -270,7 +364,64 @@ function AvailabilityPage() {
               </Grid>
             </Grid>
           </Paper>
+
+          {/* ═══════════════════════════════════════════════════════════
+              EDIT MODE - Query Editor
+              ═══════════════════════════════════════════════════════════ */}
+          {editMode && (
+            <Paper elevation={3} sx={{ p: 4, mt: 3, bgcolor: '#fff9e6' }}>
+              <Typography variant="h6" gutterBottom>
+                ✏️ Edit Your Query
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Modify your query to better match available columns, then re-analyze.
+              </Typography>
+              
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                value={editedQuery}
+                onChange={(e) => setEditedQuery(e.target.value)}
+                placeholder="Enter your modified query..."
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+              
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleReanalyze}
+                  disabled={isAnalyzing}
+                  startIcon={isAnalyzing ? <CircularProgress size={20} /> : null}
+                >
+                  {isAnalyzing ? 'Analyzing...' : 'Re-analyze Query'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setEditMode(false)}
+                  disabled={isAnalyzing}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </Paper>
+          )}
         </Container>
+
+        {/* ═══════════════════════════════════════════════════════════
+            NON-MATCH DIALOG
+            ═══════════════════════════════════════════════════════════ */}
+        <NonMatchDialog
+          open={showDialog}
+          onClose={() => setShowDialog(false)}
+          query={query}
+          result={result}
+          table={table}
+          onEditQuery={handleEditQuery}
+          onRegisterAdmin={handleRegisterAdmin}
+        />
       </Box>
     </Box>
   );

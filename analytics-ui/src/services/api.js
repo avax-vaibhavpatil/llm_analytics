@@ -60,6 +60,44 @@ export const generateReport = async (tableName, columns, filters = null, limit =
   return response.data;
 };
 
+/**
+ * Register a non-matched/partial-matched query with admin
+ * 
+ * Called when AI cannot find all required columns for a query.
+ * Saves the query details to database for admin review.
+ * 
+ * @param {Object} data - Query details
+ * @param {string} data.original_query - User's original query text
+ * @param {string} data.technical_interpretation - LLM's technical understanding
+ * @param {string} data.table_name - Table user tried to query
+ * @param {Array<string>} data.required_columns - Columns needed for analysis
+ * @param {Array<string>} data.missing_columns - Columns that don't exist
+ * @param {Array<string>} data.available_columns - Columns that do exist
+ * @returns {Promise<Object>} - {success: boolean, request_id: number, message: string}
+ * 
+ * @example
+ * const result = await registerAdminRequest({
+ *   original_query: "give me date of birth of all customers",
+ *   technical_interpretation: "User wants date_of_birth column...",
+ *   table_name: "crm_customers",
+ *   required_columns: ["date_of_birth"],
+ *   missing_columns: ["date_of_birth"],
+ *   available_columns: []
+ * });
+ * console.log(result.request_id); // 123
+ */
+export const registerAdminRequest = async (data) => {
+  const response = await api.post('/admin/register-query', {
+    original_query: data.original_query,
+    technical_interpretation: data.technical_interpretation,
+    table_name: data.table_name,
+    required_columns: data.required_columns,
+    missing_columns: data.missing_columns,
+    available_columns: data.available_columns,
+  });
+  return response.data;
+};
+
 // Axios interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
